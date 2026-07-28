@@ -132,6 +132,14 @@ final class Speaker {
     private let synth = AVSpeechSynthesizer()
     private lazy var preferredVoice: AVSpeechSynthesisVoice? = Self.bestVoice()
 
+    /// True when the chosen voice is already a higher-quality (enhanced/premium)
+    /// one. When false, only the basic/compact voice is installed and the app can
+    /// suggest downloading a better one in iOS Settings.
+    var hasNaturalVoice: Bool {
+        guard let q = preferredVoice?.quality else { return false }
+        return q == .enhanced || q == .premium
+    }
+
     /// Speak `text`. `queue: true` appends after whatever is already speaking
     /// (for sequential narration beats); otherwise it replaces the current
     /// utterance (for a fresh set cue).

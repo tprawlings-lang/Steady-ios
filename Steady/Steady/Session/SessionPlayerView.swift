@@ -148,6 +148,10 @@ struct SessionPlayerView: View {
                             .font(.subheadline)
                         Toggle("Spoken guidance (voice)", isOn: $voiceOn)
                             .font(.subheadline)
+                        if voiceOn, !speaker.hasNaturalVoice {
+                            Text("Tip: for a warmer, more natural narrator, download an enhanced voice once in Settings ▸ Accessibility ▸ Spoken Content ▸ Voices.")
+                                .font(.caption).foregroundStyle(Color.olive)
+                        }
                         if liveVoiceAvailable {
                             Toggle(isOn: $liveEnabled) {
                                 VStack(alignment: .leading, spacing: 2) {
