@@ -5,6 +5,9 @@ import SwiftUI
 /// session loop. Mirrors the web `NarrationView`.
 struct NarrationView: View {
     let beats: [String]
+    /// Speak a beat aloud as it appears (on-device). Default no-op keeps the
+    /// view usable without voice; the session passes a Speaker-backed closure.
+    var speak: (String) -> Void = { _ in }
     @State private var shown = 1
 
     var body: some View {
@@ -30,8 +33,15 @@ struct NarrationView: View {
         }
         .animation(.easeOut(duration: 0.4), value: shown)
         .onAppear {
-            // Gentle auto-reveal so the member can just read, or tap to go faster.
+            // Speak the first beat, then gently auto-reveal so the member can just
+            // listen/read, or tap to go faster.
+            speak(beats.first ?? "")
             revealNext()
+        }
+        .onChange(of: shown) { _, newValue in
+            // Each newly revealed beat is spoken in sequence (queued so it doesn't
+            // cut off the previous one).
+            if newValue >= 1, newValue <= beats.count { speak(beats[newValue - 1]) }
         }
     }
 

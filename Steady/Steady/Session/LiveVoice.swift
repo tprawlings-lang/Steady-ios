@@ -124,16 +124,51 @@ final class SpeechRecognizer {
     deinit { stop() }
 }
 
-/// Speaks the companion's reply aloud (optional; text is always shown too).
+/// Speaks deterministic guidance aloud — narration beats and the short directive
+/// cues during a calm-place set, plus the companion's reply. Picks the most
+/// natural installed voice instead of the robotic default. On-device
+/// (AVSpeechSynthesizer); nothing is uploaded. Text is always shown too.
 final class Speaker {
     private let synth = AVSpeechSynthesizer()
-    func speak(_ text: String) {
-        let u = AVSpeechUtterance(string: text)
-        u.rate = 0.46
+    private lazy var preferredVoice: AVSpeechSynthesisVoice? = Self.bestVoice()
+
+    /// Speak `text`. `queue: true` appends after whatever is already speaking
+    /// (for sequential narration beats); otherwise it replaces the current
+    /// utterance (for a fresh set cue).
+    func speak(_ text: String, queue: Bool = false) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if !queue { synth.stopSpeaking(at: .immediate) }
+        let u = AVSpeechUtterance(string: trimmed)
+        u.rate = 0.46            // calm, unhurried
         u.pitchMultiplier = 0.98
-        u.voice = AVSpeechSynthesisVoice(language: "en-US")
-        synth.stopSpeaking(at: .immediate)
+        u.voice = preferredVoice ?? AVSpeechSynthesisVoice(language: "en-US")
         synth.speak(u)
     }
+
     func stop() { synth.stopSpeaking(at: .immediate) }
+
+    /// The most natural English voice the device offers: prefer premium/enhanced
+    /// quality and a pleasant modern named voice over the compact default; avoid
+    /// the legacy novelty voices.
+    private static func bestVoice() -> AVSpeechSynthesisVoice? {
+        let english = AVSpeechSynthesisVoice.speechVoices().filter { $0.language.hasPrefix("en") }
+        guard !english.isEmpty else { return nil }
+        let nice = ["samantha", "ava", "allison", "evan", "zoe", "nathan", "joelle", "nicky", "aaron", "serena", "daniel"]
+        let bad = ["fred", "albert", "zarvox", "bells", "bad news", "cellos", "bahh", "novelty", "organ"]
+        func score(_ v: AVSpeechSynthesisVoice) -> Int {
+            var s = 0
+            switch v.quality {          // iOS 17 target: .premium/.enhanced/.default all available
+            case .premium: s += 30
+            case .enhanced: s += 20
+            default: break
+            }
+            if v.language == "en-US" { s += 4 } else if v.language == "en-GB" { s += 3 } else { s += 1 }
+            let name = v.name.lowercased()
+            if nice.contains(where: { name.contains($0) }) { s += 8 }
+            if bad.contains(where: { name.contains($0) }) { s -= 40 }
+            return s
+        }
+        return english.max { score($0) < score($1) }
+    }
 }

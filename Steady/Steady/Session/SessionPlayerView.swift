@@ -23,7 +23,9 @@ struct SessionPlayerView: View {
     @State private var currentSuds = 5
     @State private var blsMode: BLSMode = .visual
     @State private var speedMs: Double = 2400
-    @State private var soundOn = false
+    // Tones on by default — the narration promises "a slow, steady rhythm plays
+    // underneath"; a silent session is the common "I can't hear anything".
+    @State private var soundOn = true
     @State private var blsStarted = false
     @State private var blsSet = 1
     @State private var blsSecondsLeft = 0
@@ -46,6 +48,8 @@ struct SessionPlayerView: View {
     @State private var liveBusy = false
     @State private var speech = SpeechRecognizer()
     @State private var speaker = Speaker()
+    /// Spoken guidance (narration + directive cues) on by default; members can mute.
+    @State private var voiceOn = true
     private var liveVoiceAvailable: Bool { backend.gating?.liveVoiceAvailable == true }
     private var liveVoiceOn: Bool { liveEnabled && liveVoiceAvailable }
 
@@ -58,6 +62,17 @@ struct SessionPlayerView: View {
     private var preSuds: Int? { sudsTrail.first }
     private var peakSuds: Int? { sudsTrail.max() }
     private var chosenFocus: String { customFocus.trimmingCharacters(in: .whitespaces) }
+
+    // Directive cues spoken/shown DURING a set — only for positive-resource
+    // (autonomous-tier) modules like the calm place, personalized to the member's
+    // place. NOT for gated trauma-processing sets, where they'd be clinically wrong.
+    private var isResourcing: Bool { module.tier == .autonomous }
+    private var blsCues: [String] { ResourcingCues.cues(place: app.calmPlace.isEmpty ? nil : app.calmPlace) }
+    private var currentCue: String { blsCues[max(0, blsSet - 1) % blsCues.count] }
+    private func speakSetCue() {
+        guard isResourcing, voiceOn else { return }
+        speaker.speak(currentCue)   // one light cue at each set start (replaces prior)
+    }
 
     var body: some View {
         ZStack {
@@ -131,6 +146,8 @@ struct SessionPlayerView: View {
                             get: { app.hapticsEnabled },
                             set: { app.hapticsEnabled = $0 }))
                             .font(.subheadline)
+                        Toggle("Spoken guidance (voice)", isOn: $voiceOn)
+                            .font(.subheadline)
                         if liveVoiceAvailable {
                             Toggle(isOn: $liveEnabled) {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -166,6 +183,14 @@ struct SessionPlayerView: View {
                     Text("\(module.name) · step \(stepIndex + 1) of \(module.steps.count)")
                         .font(.caption).foregroundStyle(Color.olive)
                     Spacer()
+                    Button {
+                        voiceOn.toggle()
+                        if !voiceOn { speaker.stop() }
+                    } label: {
+                        Image(systemName: voiceOn ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                    }
+                    .font(.caption).foregroundStyle(Color.olive)
+                    .accessibilityLabel(voiceOn ? "Voice on" : "Voice off")
                     Button("Exit") { endSession(outcome: "abandoned") }
                         .font(.caption).foregroundStyle(Color.olive)
                 }
@@ -211,7 +236,9 @@ struct SessionPlayerView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Text(step?.title ?? "").serifTitle(24)
                 if let beats = step?.beats, !beats.isEmpty {
-                    NarrationView(beats: beats.map { fillNarrationSlots($0, calmPlace: app.calmPlace, name: app.name) })
+                    NarrationView(
+                        beats: beats.map { fillNarrationSlots($0, calmPlace: app.calmPlace, name: app.name) },
+                        speak: { if voiceOn { speaker.speak($0, queue: true) } })
                         .id(stepIndex)
                 } else if let t = step?.text {
                     Text(t).font(.system(size: 19)).foregroundStyle(Color.ground.opacity(0.9))
@@ -269,6 +296,12 @@ struct SessionPlayerView: View {
                             engine?.pulse(side: side, sound: soundOn, haptic: app.hapticsEnabled)
                         })
                 }
+            }
+            if isResourcing, blsStarted, !blsResting {
+                Text(currentCue)
+                    .font(.serifDisplay(22)).foregroundStyle(Color.ground)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
             if !blsStarted {
                 PrimaryButton(title: "Start set 1 of \(step?.sets ?? 1) (\(step?.durationSec ?? 30)s each)") {
@@ -415,6 +448,7 @@ struct SessionPlayerView: View {
         blsStarted = false
         pulser.stop()
         speech.stop()
+        speaker.stop()
         phase = .ground
         emitSafety("ground_me_pressed")
     }
@@ -494,6 +528,7 @@ struct SessionPlayerView: View {
         blsSecondsLeft = step?.durationSec ?? 30
         blsResting = false
         if blsMode == .audio { startPulser() }
+        speakSetCue()
     }
 
     private func startPulser() {
@@ -522,6 +557,7 @@ struct SessionPlayerView: View {
         blsStarted = false
         pulser.stop()
         speech.stop()
+        speaker.stop()   // don't let one step's narration bleed into the next
         if stepIndex + 1 >= module.steps.count {
             endSession(outcome: "completed")
         } else {
@@ -609,6 +645,7 @@ struct SessionPlayerView: View {
                 blsSecondsLeft = step?.durationSec ?? 30
                 blsResting = false
                 if blsMode == .audio { startPulser() }
+                speakSetCue()
             }
         } else {
             // Set finished → micro-pause.
