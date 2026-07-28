@@ -53,6 +53,10 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
         .tint(Color.sageDeep)
+        // Panic button on top of every tab, lifted to clear the tab bar.
+        .overlay(alignment: .bottomTrailing) {
+            SosFloatingButton().padding(.trailing, 18).padding(.bottom, 66)
+        }
         .task(id: backend.isAuthenticated) {
             if backend.isAuthenticated {
                 await SyncEngine.sync(backend, context: context)

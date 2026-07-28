@@ -262,6 +262,16 @@ final class Backend {
         let _: OkResponse? = try? await request("/api/mobile/v1/lessons/read", method: "POST", body: body)
     }
 
+    // MARK: - SOS (panic panel)
+
+    func getSos() async throws -> SosPanelDTO {
+        try await request("/api/mobile/v1/sos", method: "GET")
+    }
+    /// Record that the member opened the panel. Best-effort; never blocks the UI.
+    func recordSosOpened() async {
+        let _: OkResponse? = try? await request("/api/mobile/v1/sos/open", method: "POST", body: Data("{}".utf8))
+    }
+
     // MARK: - Companion
 
     func companionConversation() async throws -> ConversationResponse {
