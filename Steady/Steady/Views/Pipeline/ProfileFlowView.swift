@@ -185,7 +185,32 @@ struct ProfileFlowView: View {
     // MARK: actions
 
     private func load() async {
-        do { catalog = try await backend.getProfileCatalog() } catch { self.error = "Could not load onboarding." }
+        do {
+            let cat = try await backend.getProfileCatalog()
+            prefill(from: cat.saved)   // resume-edit: seed fields from saved values
+            catalog = cat
+        } catch { self.error = "Could not load onboarding." }
+    }
+
+    /// Seed the form's state from the member's previously-saved profile so the
+    /// native forms resume-edit like the web (parity). Low-risk fields only —
+    /// leaves already-saved triggers as-is (they're additive).
+    private func prefill(from s: SavedProfileDTO?) {
+        guard let s else { return }
+        if let sup = s.support {
+            if let t = sup.therapistStatus { therapistStatus = t }
+            if let e = sup.emdrExperience { emdrExperience = e }
+            goals = Set(sup.goals)
+        }
+        if !s.restrictedTopics.isEmpty { restricted = Set(s.restrictedTopics) }
+        if !s.warningSigns.isEmpty { warningSigns = Set(s.warningSigns) }
+        if let comp = s.companion {
+            if let n = comp.preferredName { prefName = n }
+            if let t = comp.tone { tone = t }
+            modes = Set(comp.modes)
+            avoidances = Set(comp.avoidances)
+            memory = comp.memory
+        }
     }
 
     private func saveAndAdvance(_ cat: ProfileCatalog) async {

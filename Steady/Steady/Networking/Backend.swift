@@ -156,6 +156,14 @@ final class Backend {
         try await profilePost(body)
     }
 
+    /// Persist the calm place directly (e.g. from Settings) — reaches the same
+    /// server "calm place" memory slot the web reads, so it's shared across
+    /// devices. Best-effort; refreshes gating so /me returns the new value.
+    struct CalmPlaceBody: Encodable { let step = "calm-place"; let calmPlace: String }
+    func setCalmPlace(_ place: String) async throws {
+        let _: OkResponse = try await profilePost(CalmPlaceBody(calmPlace: place))
+    }
+
     // MARK: - Sync endpoints
 
     func postCheckin(_ body: CheckinBody) async throws -> CheckinResultDTO {

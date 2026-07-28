@@ -87,6 +87,13 @@ struct SettingsView: View {
                     Section("You") {
                         TextField("Name", text: Binding(get: { app.name }, set: { app.name = $0 }))
                         TextField("Calm-place word", text: Binding(get: { app.calmPlace }, set: { app.calmPlace = $0 }))
+                            .onSubmit {
+                                // Persist to the account so it's shared across devices (parity w/ web).
+                                if backend.isAuthenticated {
+                                    let cp = app.calmPlace
+                                    Task { try? await backend.setCalmPlace(cp) }
+                                }
+                            }
                     }
                     Section("Sessions") {
                         Toggle("Audio-only bilateral stimulation", isOn: Binding(get: { app.audioOnlyDefault }, set: { app.audioOnlyDefault = $0 }))

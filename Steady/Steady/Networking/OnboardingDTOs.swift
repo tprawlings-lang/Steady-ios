@@ -77,4 +77,23 @@ struct ProfileCatalog: Codable {
     let pause: [Labeled]
     let pace: [Labeled]
     let risk: [Labeled]
+    /// The member's previously-saved values, so the forms can resume-edit.
+    let saved: SavedProfileDTO?
+}
+
+/// Saved profile values returned by GET /profile (mirrors savedProfileMobile).
+struct SavedProfileDTO: Codable {
+    struct Support: Codable { let therapistStatus: String?; let emdrExperience: String?; let goals: [String] }
+    struct Trigger: Codable { let name: String; let category: String; let intensity: Int }
+    struct Companion: Codable {
+        let preferredName: String?; let tone: String?
+        let modes: [String]; let avoidances: [String]; let memory: String
+    }
+    let support: Support?
+    let restrictedTopics: [String]
+    let triggers: [Trigger]
+    let warningSigns: [String]
+    let companion: Companion?
+    let hasSafetyPlan: Bool
+    let calmPlace: String?
 }
