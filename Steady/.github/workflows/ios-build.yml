@@ -1,0 +1,35 @@
+name: iOS build
+
+# Compiles the Steady app on an Apple-provided macOS runner — no Mac of your own
+# needed. This is the free "does it actually build?" check. It compiles every
+# file for the iOS Simulator (no signing, no device required) and fails the run
+# with the exact error: lines if anything doesn't type-check.
+#
+# Push this repo to GitHub and it runs automatically; or trigger it by hand from
+# the Actions tab (Run workflow).
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14        # ships with Xcode 16
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build (iOS Simulator, no signing)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Steady.xcodeproj \
+            -scheme Steady \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build

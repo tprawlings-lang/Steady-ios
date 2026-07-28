@@ -1,0 +1,152 @@
+import SwiftUI
+import SwiftData
+
+/// The member's home: a warm greeting, today's check-in prompt, the module
+/// program, and a distress trend across recent sessions.
+struct DashboardView: View {
+    @Environment(AppState.self) private var app
+    @Environment(Backend.self) private var backend
+    @Query(sort: \SessionRecord.startedAt, order: .reverse) private var sessions: [SessionRecord]
+    @Query(sort: \CheckinRecord.date, order: .reverse) private var checkins: [CheckinRecord]
+
+    private func available(_ module: TherapyModule) -> Bool {
+        backend.serverAllows(module.id) ?? app.isModuleAvailable(module)
+    }
+
+    private var modulesByOrder: [TherapyModule] { ModuleCatalog.all.sorted { $0.order < $1.order } }
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                ScreenBackground()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        header
+                        checkinCard
+                        if !sessions.isEmpty { trendCard }
+                        programSection
+                        Text("Steady is a self-guided wellness program built on the EMDR method — not therapy, not medical care. Not for emergencies.")
+                            .font(.caption2).foregroundStyle(Color.olive)
+                            .padding(.top, 4)
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Steady")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(greeting).font(.caption).foregroundStyle(Color.olive)
+            Text(app.name.isEmpty ? "Welcome back" : "Hello, \(app.name)").serifTitle(30)
+        }
+    }
+
+    private var checkinCard: some View {
+        SoftCard(background: Color.moss) {
+            VStack(alignment: .leading, spacing: 8) {
+                if let latest = checkins.first, Calendar.current.isDateInToday(latest.date),
+                   let action = RecommendedAction(rawValue: latest.action) {
+                    Text("Today's check-in").font(.caption).foregroundStyle(Color.olive)
+                    Text(action.headline).font(.headline).foregroundStyle(Color.ground)
+                    Text(action.detail).font(.subheadline).foregroundStyle(Color.ground.opacity(0.85))
+                } else {
+                    Text("Start with a check-in").font(.headline).foregroundStyle(Color.ground)
+                    Text("90 seconds. It decides what's safe to do today.")
+                        .font(.subheadline).foregroundStyle(Color.ground.opacity(0.85))
+                }
+            }
+        }
+    }
+
+    private var trendCard: some View {
+        SoftCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Distress across recent sessions").font(.headline)
+                SudsTrendChart(sessions: Array(sessions.prefix(10)).reversed())
+                    .frame(height: 90)
+                Text("Lower is calmer. Each point is a session's ending distress rating.")
+                    .font(.caption).foregroundStyle(Color.olive)
+            }
+        }
+    }
+
+    private var programSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your program").font(.headline).foregroundStyle(Color.ground)
+            ForEach(modulesByOrder) { module in
+                NavigationLink {
+                    ModuleDetailView(module: module)
+                } label: {
+                    moduleRow(module)
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func moduleRow(_ module: TherapyModule) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(Color.sage.opacity(0.25)).frame(width: 40, height: 40)
+                Text("\(module.order)").font(.subheadline.weight(.semibold)).foregroundStyle(Color.sageDeep)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(module.name).font(.system(size: 16, weight: .medium)).foregroundStyle(Color.ground)
+                Text(module.objective).font(.caption).foregroundStyle(Color.olive).lineLimit(1)
+            }
+            Spacer()
+            if available(module) {
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.olive)
+            } else {
+                Image(systemName: "lock.fill").font(.caption).foregroundStyle(Color.mistDeep)
+            }
+        }
+        .padding(14)
+        .background(Color.linen, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.ground.opacity(0.08)))
+    }
+
+    private var greeting: String {
+        let h = Calendar.current.component(.hour, from: Date())
+        switch h {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        default: return "Good evening"
+        }
+    }
+}
+
+/// Minimal line chart of ending SUDS per session (0–10), no dependencies.
+struct SudsTrendChart: View {
+    let sessions: [SessionRecord]
+    var body: some View {
+        GeometryReader { geo in
+            let points = sessions.compactMap { $0.postSuds }
+            let w = geo.size.width, h = geo.size.height
+            if points.count < 2 {
+                Text("Complete a couple of sessions to see your trend.")
+                    .font(.caption).foregroundStyle(Color.olive)
+            } else {
+                let maxV = 10.0
+                let step = points.count > 1 ? w / CGFloat(points.count - 1) : w
+                ZStack {
+                    Path { p in
+                        for (i, v) in points.enumerated() {
+                            let x = CGFloat(i) * step
+                            let y = h - (CGFloat(v) / maxV) * h
+                            if i == 0 { p.move(to: CGPoint(x: x, y: y)) }
+                            else { p.addLine(to: CGPoint(x: x, y: y)) }
+                        }
+                    }.stroke(Color.sageDeep, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    ForEach(Array(points.enumerated()), id: \.offset) { i, v in
+                        let x = CGFloat(i) * step
+                        let y = h - (CGFloat(v) / maxV) * h
+                        Circle().fill(Color.sageDeep).frame(width: 6, height: 6).position(x: x, y: y)
+                    }
+                }
+            }
+        }
+    }
+}
