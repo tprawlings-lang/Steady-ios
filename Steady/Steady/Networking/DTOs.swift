@@ -31,6 +31,7 @@ struct GatingDTO: Codable, Equatable {
     let liveVoiceAvailable: Bool
     let nextStep: String
     let todayCheckin: TodayCheckinDTO?
+    let calmPlace: String?
 }
 
 struct ModuleDTO: Codable, Identifiable, Equatable {

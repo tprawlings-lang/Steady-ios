@@ -205,6 +205,22 @@ final class Backend {
         let _: OkResponse? = try? await request("/api/mobile/v1/safety-events", method: "POST", body: body)
     }
 
+    /// Persist a Module-5 trigger-map entry to the account (user_triggers,
+    /// encrypted) — parity with the web recordSessionTrigger.
+    struct TriggerBody: Encodable {
+        let sessionId: String; let name: String; let category: String
+        let bodyFelt: String; let belief: String; let disruption: Int
+    }
+    @discardableResult
+    func postSessionTrigger(sessionId: String, name: String, category: String = "other",
+                            bodyFelt: String, belief: String, disruption: Int) async throws -> Bool {
+        let body = try JSONEncoder().encode(TriggerBody(
+            sessionId: sessionId, name: name, category: category,
+            bodyFelt: bodyFelt, belief: belief, disruption: disruption))
+        let r: OkResponse = try await request("/api/mobile/v1/sessions/trigger", method: "POST", body: body)
+        return r.ok
+    }
+
     // MARK: - Companion
 
     func companionConversation() async throws -> ConversationResponse {

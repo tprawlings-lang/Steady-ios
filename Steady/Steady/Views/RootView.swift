@@ -7,6 +7,14 @@ struct RootView: View {
     @Environment(AppState.self) private var app
     @Environment(Backend.self) private var backend
     @Environment(\.modelContext) private var context
+    @Environment(\.scenePhase) private var scenePhase
+
+    /// Pull the account's server state into local app state after a sync:
+    /// restore the saved calm place so it's shared across devices (parity w/ web).
+    private func applyServerState() {
+        if backend.gating?.seizureFlag == true { app.audioOnlyDefault = true }
+        if let cp = backend.gating?.calmPlace, !cp.isEmpty { app.calmPlace = cp }
+    }
 
     var body: some View {
         if backend.isConfigured && !backend.isAuthenticated {
@@ -47,9 +55,15 @@ struct RootView: View {
         .tint(Color.sageDeep)
         .task(id: backend.isAuthenticated) {
             if backend.isAuthenticated {
-                // Honor the fitness screener's seizure soft-flag as an audio-only default.
-                if backend.gating?.seizureFlag == true { app.audioOnlyDefault = true }
                 await SyncEngine.sync(backend, context: context)
+                applyServerState()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            // Re-sync when returning to the foreground so anything created offline
+            // (or on the web) reconciles without a manual tap.
+            if phase == .active, backend.isAuthenticated {
+                Task { await SyncEngine.sync(backend, context: context); applyServerState() }
             }
         }
     }

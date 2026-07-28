@@ -272,7 +272,7 @@ struct SessionPlayerView: View {
         case .bls?:
             blsBody
         case .triggerEntry?:
-            TriggerEntryStep(text: step?.text, onDone: { advance() })
+            TriggerEntryStep(text: step?.text, sessionId: serverSessionId, onDone: { advance() })
         case .none:
             EmptyView()
         }
@@ -437,7 +437,12 @@ struct SessionPlayerView: View {
         // Open a server session so the gate is enforced and the clinician's
         // view sees it. If offline or denied, the session still runs locally.
         if backend.isAuthenticated {
-            let focus = chosenFocus.isEmpty ? nil : chosenFocus
+            // For the calm-place module, the member's calm place IS the focus —
+            // sending it persists it to the server "calm place" memory slot
+            // (parity with web), so it's durable and shows up on other devices.
+            let focus: String? = chosenFocus.isEmpty
+                ? (module.id == "calm-place" && !app.calmPlace.isEmpty ? app.calmPlace : nil)
+                : chosenFocus
             Task { @MainActor in serverSessionId = try? await backend.startSession(moduleId: module.id, focus: focus) }
         }
     }
@@ -670,8 +675,11 @@ struct SessionPlayerView: View {
 /// Structured trigger capture (Module 5) — headline-level entries kept on-device.
 private struct TriggerEntryStep: View {
     let text: String?
+    /// The open server session; trigger entries persist to the account when set.
+    let sessionId: String?
     let onDone: () -> Void
 
+    @Environment(Backend.self) private var backend
     @State private var saved: [String] = []
     @State private var name = ""
     @State private var bodyFelt = ""
@@ -700,6 +708,13 @@ private struct TriggerEntryStep: View {
                     Button {
                         let n = name.trimmingCharacters(in: .whitespaces)
                         guard !n.isEmpty else { return }
+                        // Persist to the account (encrypted user_triggers) so it
+                        // reaches the program plan + specialist, exactly like web.
+                        if let sid = sessionId {
+                            let b = bodyFelt, bel = belief, d = Int(disruption)
+                            Task { try? await backend.postSessionTrigger(
+                                sessionId: sid, name: n, bodyFelt: b, belief: bel, disruption: d) }
+                        }
                         saved.append(n); name = ""; bodyFelt = ""; belief = ""; disruption = 5
                     } label: {
                         Text("Save this trigger to my map").frame(maxWidth: .infinity)
