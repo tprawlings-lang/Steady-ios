@@ -24,6 +24,7 @@ struct DashboardView: View {
                         header
                         checkinCard
                         breatheCard
+                        learnCard
                         if !sessions.isEmpty { trendCard }
                         programSection
                         Text("Steady is a self-guided wellness program built on the EMDR method — not therapy, not medical care. Not for emergencies.")
@@ -54,6 +55,21 @@ struct DashboardView: View {
                     Text("Prepare & regulate").font(.caption).foregroundStyle(Color.olive)
                     Text("Breathe").font(.serifDisplay(24)).foregroundStyle(Color.ground)
                     Text("A few minutes of paced breathing to settle — before a session, or any time.")
+                        .font(.subheadline).foregroundStyle(Color.olive)
+                }
+            }
+        }.buttonStyle(.plain)
+    }
+
+    private var learnCard: some View {
+        NavigationLink {
+            LearnView()
+        } label: {
+            SoftCard {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Understand the method").font(.caption).foregroundStyle(Color.olive)
+                    Text("Learn").font(.serifDisplay(24)).foregroundStyle(Color.ground)
+                    Text("Short, trauma-informed reads — the window of tolerance, why it works, understanding triggers.")
                         .font(.subheadline).foregroundStyle(Color.olive)
                 }
             }

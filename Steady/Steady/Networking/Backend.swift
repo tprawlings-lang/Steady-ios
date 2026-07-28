@@ -251,6 +251,17 @@ final class Backend {
         let _: OkResponse? = try? await request("/api/mobile/v1/sessions/prepare", method: "POST", body: body)
     }
 
+    // MARK: - Lessons (psychoeducation)
+
+    func getLessons() async throws -> LessonsResponse {
+        try await request("/api/mobile/v1/lessons", method: "GET")
+    }
+    func markLessonRead(lessonId: String) async {
+        struct Body: Encodable { let lessonId: String }
+        guard let body = try? JSONEncoder().encode(Body(lessonId: lessonId)) else { return }
+        let _: OkResponse? = try? await request("/api/mobile/v1/lessons/read", method: "POST", body: body)
+    }
+
     // MARK: - Companion
 
     func companionConversation() async throws -> ConversationResponse {
