@@ -229,6 +229,20 @@ final class Backend {
         return r.ok
     }
 
+    // MARK: - Practices (Prepare & Regulate)
+
+    func getPractices(type: String = "breathwork") async throws -> [PracticeDTO] {
+        let r: PracticesResponse = try await request("/api/mobile/v1/practices?type=\(type)", method: "GET")
+        return r.practices
+    }
+    struct PracticeCompleteBody: Encodable { let practiceId: String; let durationSec: Int }
+    @discardableResult
+    func completePractice(practiceId: String, durationSec: Int) async throws -> Bool {
+        let body = try JSONEncoder().encode(PracticeCompleteBody(practiceId: practiceId, durationSec: durationSec))
+        let r: OkResponse = try await request("/api/mobile/v1/practices/complete", method: "POST", body: body)
+        return r.ok
+    }
+
     // MARK: - Companion
 
     func companionConversation() async throws -> ConversationResponse {
