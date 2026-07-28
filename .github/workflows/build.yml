@@ -1,0 +1,20 @@
+name: iOS build
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: unzip -q Steady-iOS.zip
+      - name: Xcode version
+        run: xcodebuild -version
+      - name: Build
+        working-directory: Steady
+        run: |
+          set -o pipefail
+          xcodebuild -project Steady.xcodeproj -scheme Steady \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO clean build
