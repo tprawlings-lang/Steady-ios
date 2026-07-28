@@ -24,6 +24,7 @@ struct DashboardView: View {
                         header
                         checkinCard
                         breatheCard
+                        meditateCard
                         learnCard
                         if !sessions.isEmpty { trendCard }
                         programSection
@@ -55,6 +56,21 @@ struct DashboardView: View {
                     Text("Prepare & regulate").font(.caption).foregroundStyle(Color.olive)
                     Text("Breathe").font(.serifDisplay(24)).foregroundStyle(Color.ground)
                     Text("A few minutes of paced breathing to settle — before a session, or any time.")
+                        .font(.subheadline).foregroundStyle(Color.olive)
+                }
+            }
+        }.buttonStyle(.plain)
+    }
+
+    private var meditateCard: some View {
+        NavigationLink {
+            MeditateView()
+        } label: {
+            SoftCard {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Prepare & regulate").font(.caption).foregroundStyle(Color.olive)
+                    Text("Meditate").font(.serifDisplay(24)).foregroundStyle(Color.ground)
+                    Text("Short guided practices — grounding, calm-place, self-compassion. Read aloud or as text.")
                         .font(.subheadline).foregroundStyle(Color.olive)
                 }
             }

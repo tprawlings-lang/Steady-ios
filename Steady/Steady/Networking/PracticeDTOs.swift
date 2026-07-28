@@ -6,6 +6,13 @@ struct BreathPhaseDTO: Codable, Hashable {
     let seconds: Double
 }
 
+/// One spoken/shown beat of a guided meditation (roadmap F2). Optional on
+/// PracticeDTO — present only for `type == "meditation"`.
+struct MeditationSegmentDTO: Codable, Hashable {
+    let text: String
+    let seconds: Double
+}
+
 struct PracticeDTO: Codable, Identifiable, Hashable {
     let id: String
     let type: String
@@ -15,6 +22,7 @@ struct PracticeDTO: Codable, Identifiable, Hashable {
     let intensity: Int
     let tags: [String]
     let phases: [BreathPhaseDTO]?
+    let segments: [MeditationSegmentDTO]?
     let hasHold: Bool
     let note: String?
 }
