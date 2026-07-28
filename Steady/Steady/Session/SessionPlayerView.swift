@@ -50,6 +50,10 @@ struct SessionPlayerView: View {
     @State private var speaker = Speaker()
     /// Spoken guidance (narration + directive cues) on by default; members can mute.
     @State private var voiceOn = true
+    // Prepare-for-session on-ramp (F4).
+    @State private var preparePractice: PracticeDTO?
+    @State private var preparing = false
+    @State private var prepared = false
     private var liveVoiceAvailable: Bool { backend.gating?.liveVoiceAvailable == true }
     private var liveVoiceOn: Bool { liveEnabled && liveVoiceAvailable }
 
@@ -84,11 +88,26 @@ struct SessionPlayerView: View {
         .onReceive(tick) { _ in onTick() }
         .onDisappear { teardown() }
         .onAppear { blsMode = app.audioOnlyDefault ? .audio : .visual }
+        .task { if preparePractice == nil { preparePractice = try? await backend.getPractices().first } }
     }
 
     @ViewBuilder private var content: some View {
         switch phase {
-        case .intro:    introView
+        case .intro:
+            if preparing, let p = preparePractice {
+                VStack(spacing: 16) {
+                    Text("Taking a moment to settle before we begin.").foregroundStyle(Color.olive)
+                    BreathePacerView(practice: p) { secs in
+                        preparing = false
+                        prepared = true
+                        if secs >= 20 { Task { try? await backend.completePractice(practiceId: p.id, durationSec: secs) } }
+                        Task { await backend.recordSessionPrepare(moduleId: module.id) }
+                    }
+                }
+                .padding(20)
+            } else {
+                introView
+            }
         case .running:  runningView
         case .ground, .sudpause: groundView
         case .hardstop: hardStopView
@@ -160,6 +179,23 @@ struct SessionPlayerView: View {
                                         .font(.caption).foregroundStyle(Color.olive)
                                 }
                             }.font(.subheadline)
+                        }
+                    }
+                }
+
+                if preparePractice != nil {
+                    SoftCard {
+                        if prepared {
+                            Text("✓ You took a moment to settle. Begin whenever you're ready.")
+                                .font(.subheadline).foregroundStyle(Color.sageDeep)
+                        } else {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Prepare first (optional)").font(.subheadline.weight(.medium))
+                                Text("A short paced breath to settle before you start — about a minute. Steadier going in tends to make the work gentler.")
+                                    .font(.caption).foregroundStyle(Color.olive)
+                                Button("Prepare with a breath") { preparing = true }
+                                    .font(.subheadline.weight(.medium)).foregroundStyle(Color.sageDeep)
+                            }
                         }
                     }
                 }

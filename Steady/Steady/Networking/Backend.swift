@@ -243,6 +243,14 @@ final class Backend {
         return r.ok
     }
 
+    /// Prepare-for-session on-ramp (F4): best-effort audit that a member regulated
+    /// before starting a module (measurable hard-stop analytics).
+    func recordSessionPrepare(moduleId: String) async {
+        struct Body: Encodable { let moduleId: String }
+        guard let body = try? JSONEncoder().encode(Body(moduleId: moduleId)) else { return }
+        let _: OkResponse? = try? await request("/api/mobile/v1/sessions/prepare", method: "POST", body: body)
+    }
+
     // MARK: - Companion
 
     func companionConversation() async throws -> ConversationResponse {

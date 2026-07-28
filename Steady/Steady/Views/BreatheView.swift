@@ -1,46 +1,42 @@
 import SwiftUI
-import CoreHaptics
 
-/// Breathwork library + paced-breathing player (roadmap F3). Backend-served,
-/// safety-ordered patterns; the pacer animates a circle and — on iPhone — fires
-/// gentle Core Haptics cues at each phase. Deterministic patterns; no media.
+/// Breathwork library (roadmap F3). Backend-served, safety-ordered patterns; the
+/// paced-breathing player is the shared BreathePacerView (also used by the
+/// prepare-for-session on-ramp).
 struct BreatheView: View {
     @Environment(Backend.self) private var backend
 
     @State private var practices: [PracticeDTO] = []
     @State private var selected: PracticeDTO?
-    @State private var running = false
     @State private var done = false
-    @State private var label = ""
-    @State private var scale: CGFloat = 0.5
     @State private var loadError: String?
-    @State private var runTask: Task<Void, Never>?
-    @State private var startedAt = Date()
-    private let haptics = BreathHaptics()
 
     var body: some View {
         ZStack {
             ScreenBackground()
-            if let selected, running || done {
-                player(selected)
+            if let selected, !done {
+                VStack {
+                    BreathePacerView(practice: selected) { secs in
+                        if secs >= 20 {
+                            Task { try? await backend.completePractice(practiceId: selected.id, durationSec: secs) }
+                        }
+                        done = true
+                    }
+                }
+                .padding(20)
+            } else if selected != nil, done {
+                doneScreen
             } else {
                 library
             }
         }
         .task { await load() }
-        .onDisappear {
-            running = false
-            runTask?.cancel()
-            haptics.stop()
-        }
     }
 
     private func load() async {
         do { practices = try await backend.getPractices() }
         catch { loadError = "Couldn't load breathing patterns." }
     }
-
-    // MARK: Library
 
     private var library: some View {
         ScrollView {
@@ -50,7 +46,7 @@ struct BreatheView: View {
                     .foregroundStyle(Color.olive)
                 if let loadError { Text(loadError).font(.footnote).foregroundStyle(Color.support) }
                 ForEach(practices) { p in
-                    Button { start(p) } label: {
+                    Button { done = false; selected = p } label: {
                         SoftCard {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack(alignment: .firstTextBaseline) {
@@ -71,127 +67,15 @@ struct BreatheView: View {
         }
     }
 
-    // MARK: Player
-
-    @ViewBuilder private func player(_ p: PracticeDTO) -> some View {
-        VStack(spacing: 28) {
+    private var doneScreen: some View {
+        VStack(spacing: 20) {
             Spacer()
-            if running {
-                ZStack {
-                    Circle().fill(Color.sage.opacity(0.30))
-                        .frame(width: 260, height: 260)
-                        .scaleEffect(scale)
-                    Circle().fill(Color.sage.opacity(0.5)).frame(width: 150, height: 150)
-                }
-                .frame(width: 260, height: 260)
-                Text(label).font(.serifDisplay(30)).foregroundStyle(Color.ground)
-                if let note = p.note {
-                    Text(note).font(.footnote).foregroundStyle(Color.olive)
-                        .multilineTextAlignment(.center).padding(.horizontal, 24)
-                }
-                Spacer()
-                Button { finish(p) } label: {
-                    Text("I'm done").font(.headline).foregroundStyle(Color.ground)
-                        .padding(.horizontal, 28).padding(.vertical, 14)
-                        .overlay(Capsule().stroke(Color.ground.opacity(0.25)))
-                }.buttonStyle(.plain).padding(.bottom, 24)
-            } else {
-                Text("Nicely done").serifTitle(30)
-                Text("That's a small, real act of care. Your breath is always here to come back to.")
-                    .foregroundStyle(Color.olive).multilineTextAlignment(.center).padding(.horizontal, 28)
-                Spacer()
-                PrimaryButton(title: "Another pattern") { reset() }
-                    .padding(.horizontal, 20).padding(.bottom, 24)
-            }
+            Text("Nicely done").serifTitle(30)
+            Text("That's a small, real act of care. Your breath is always here to come back to.")
+                .foregroundStyle(Color.olive).multilineTextAlignment(.center).padding(.horizontal, 28)
+            Spacer()
+            PrimaryButton(title: "Another pattern") { selected = nil; done = false }
+                .padding(.horizontal, 20).padding(.bottom, 24)
         }
-    }
-
-    // MARK: Runner
-
-    private func start(_ p: PracticeDTO) {
-        selected = p; done = false; running = true; startedAt = Date()
-        haptics.prepare()
-        runTask?.cancel()
-        runTask = Task { await run(p) }
-    }
-
-    @MainActor
-    private func run(_ p: PracticeDTO) async {
-        let phases = p.phases ?? []
-        guard !phases.isEmpty else { finish(p); return }
-        var i = 0
-        while running && !Task.isCancelled {
-            if Date().timeIntervalSince(startedAt) >= p.durationSec { finish(p); return }
-            let phase = phases[i % phases.count]
-            label = phaseLabel(phase.label)
-            haptics.cue(phase.label)
-            if phase.label == "inhale" {
-                withAnimation(.easeInOut(duration: phase.seconds)) { scale = 1.0 }
-            } else if phase.label == "exhale" {
-                withAnimation(.easeInOut(duration: phase.seconds)) { scale = 0.4 }
-            }
-            do { try await Task.sleep(nanoseconds: UInt64(phase.seconds * 1_000_000_000)) }
-            catch { return }
-            i += 1
-        }
-    }
-
-    private func finish(_ p: PracticeDTO) {
-        running = false; done = true
-        runTask?.cancel(); haptics.stop()
-        let elapsed = Int(Date().timeIntervalSince(startedAt))
-        if elapsed >= 20 {
-            Task { try? await backend.completePractice(practiceId: p.id, durationSec: elapsed) }
-        }
-    }
-
-    private func reset() {
-        running = false; done = false; selected = nil; scale = 0.5
-    }
-
-    private func phaseLabel(_ label: String) -> String {
-        switch label {
-        case "inhale": return "Breathe in"
-        case "exhale": return "Breathe out"
-        case "hold": return "Hold"
-        default: return "Rest"
-        }
-    }
-}
-
-/// Gentle Core Haptics phase cues for the breath pacer (best-effort).
-final class BreathHaptics {
-    private var engine: CHHapticEngine?
-
-    func prepare() {
-        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
-        engine = try? CHHapticEngine()
-        engine?.isAutoShutdownEnabled = true
-        try? engine?.start()
-    }
-
-    func cue(_ label: String) {
-        guard let engine else { return }
-        let intensity: Float = label == "hold" || label == "rest" ? 0.25 : 0.6
-        let event = CHHapticEvent(
-            eventType: .hapticTransient,
-            parameters: [
-                CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
-                CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.4),
-            ],
-            relativeTime: 0
-        )
-        do {
-            let pattern = try CHHapticPattern(events: [event], parameters: [])
-            try engine.start()
-            try engine.makePlayer(with: pattern).start(atTime: 0)
-        } catch {
-            // best-effort
-        }
-    }
-
-    func stop() {
-        engine?.stop()
-        engine = nil
     }
 }
