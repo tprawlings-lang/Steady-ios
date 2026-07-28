@@ -4,13 +4,15 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Select Xcode 16
+        run: |
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+          xcodebuild -version
       - name: Unzip project
         run: unzip -q Steady-iOS.zip
-      - name: Xcode version
-        run: xcodebuild -version
       - name: Build
         working-directory: Steady
         run: |
