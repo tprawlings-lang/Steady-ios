@@ -1,10 +1,46 @@
 import SwiftUI
 
-/// Guided meditation library (roadmap F2). Backend-served, safety-ordered
-/// scripts; the player reads each beat aloud on-device (AVSpeechSynthesizer,
-/// the same Speaker the sessions use) and holds it for its pace. Mirrors the
-/// web MeditationLibrary. Reached from the Dashboard.
+/// Copy + practice type that differ between the meditation (F2) and sleep (F5)
+/// libraries. Same player and completion mechanics — only the framing changes.
+struct LibraryCopy {
+    let practiceType: String
+    let heading: String
+    let intro: String
+    let loadError: String
+    let footnote: String
+    let doneTitle: String
+    let doneBody: String
+    let anotherLabel: String
+
+    static let meditation = LibraryCopy(
+        practiceType: "meditation",
+        heading: "Meditate",
+        intro: "Short, guided practices to steady and soothe — grounding, breath, calm-place, self-compassion. Read aloud, or follow along as text.",
+        loadError: "Couldn't load meditations.",
+        footnote: "Gentler, more grounding practices come first on days your check-in suggests taking it easy. Stop any time.",
+        doneTitle: "Time well spent",
+        doneBody: "You gave yourself a few quiet minutes. That's a real act of care — and it's always here when you need it.",
+        anotherLabel: "Another practice"
+    )
+
+    static let sleep = LibraryCopy(
+        practiceType: "sleep",
+        heading: "Wind down for sleep",
+        intro: "Guided wind-downs to do lying down, in the dark — slow breathing, melting into rest, putting the day down. Let them read aloud, dim your screen, and drift.",
+        loadError: "Couldn't load wind-downs.",
+        footnote: "Best done lying down with the lights low. Stop any time — and it's okay to fall asleep partway through.",
+        doneTitle: "Rest well",
+        doneBody: "However far you got, you gave your body a chance to let go. Sleep will come.",
+        anotherLabel: "A different wind-down"
+    )
+}
+
+/// Guided meditation / sleep library (roadmap F2 / F5). Backend-served,
+/// safety-ordered scripts; the player reads each beat aloud on-device
+/// (AVSpeechSynthesizer, the same Speaker the sessions use) and holds it for
+/// its pace. Mirrors the web MeditationLibrary. Reached from the Dashboard.
 struct MeditateView: View {
+    var copy: LibraryCopy = .meditation
     @Environment(Backend.self) private var backend
 
     @State private var practices: [PracticeDTO] = []
@@ -29,21 +65,21 @@ struct MeditateView: View {
                 library
             }
         }
-        .navigationTitle("Meditate")
+        .navigationTitle(copy.heading)
         .navigationBarTitleDisplayMode(.inline)
         .task { await load() }
     }
 
     private func load() async {
-        do { practices = try await backend.getPractices(type: "meditation") }
-        catch { loadError = "Couldn't load meditations." }
+        do { practices = try await backend.getPractices(type: copy.practiceType) }
+        catch { loadError = copy.loadError }
     }
 
     private var library: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Meditate").serifTitle(34)
-                Text("Short, guided practices to steady and soothe — grounding, breath, calm-place, self-compassion. Read aloud, or follow along as text.")
+                Text(copy.heading).serifTitle(34)
+                Text(copy.intro)
                     .foregroundStyle(Color.olive)
                 if let loadError { Text(loadError).font(.footnote).foregroundStyle(Color.support) }
                 ForEach(practices) { p in
@@ -61,7 +97,7 @@ struct MeditateView: View {
                         }
                     }.buttonStyle(.plain)
                 }
-                Text("Gentler, more grounding practices come first on days your check-in suggests taking it easy. Stop any time.")
+                Text(copy.footnote)
                     .font(.caption).foregroundStyle(Color.olive).padding(.top, 4)
             }
             .padding(20)
@@ -71,11 +107,11 @@ struct MeditateView: View {
     private var doneScreen: some View {
         VStack(spacing: 20) {
             Spacer()
-            Text("Time well spent").serifTitle(30)
-            Text("You gave yourself a few quiet minutes. That's a real act of care — and it's always here when you need it.")
+            Text(copy.doneTitle).serifTitle(30)
+            Text(copy.doneBody)
                 .foregroundStyle(Color.olive).multilineTextAlignment(.center).padding(.horizontal, 28)
             Spacer()
-            PrimaryButton(title: "Another practice") { selected = nil; done = false }
+            PrimaryButton(title: copy.anotherLabel) { selected = nil; done = false }
                 .padding(.horizontal, 20).padding(.bottom, 24)
         }
     }
