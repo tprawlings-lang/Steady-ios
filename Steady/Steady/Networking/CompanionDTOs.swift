@@ -26,6 +26,9 @@ struct SendMessageResponse: Codable {
     let reply: String
     let riskFlag: Bool
     let aiEnabled: Bool
+    /// Earned membership suggestion (pricing Phase B). Optional so older
+    /// servers still decode; shown as a distinct card, never companion speech.
+    let suggestion: String?
 }
 
 struct MemoryItemDTO: Codable, Identifiable, Equatable {

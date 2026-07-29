@@ -13,6 +13,7 @@ struct CompanionView: View {
     @State private var loaded = false
     @State private var showCrisis = false
     @State private var showMemory = false
+    @State private var suggestion: String?
     @State private var error: String?
 
     var body: some View {
@@ -63,6 +64,7 @@ struct CompanionView: View {
                                 .frame(maxWidth: .infinity).padding(.top, 40)
                         }
                         ForEach(messages) { m in bubble(m) }
+                        if let suggestion { suggestionCard(suggestion) }
                         if sending {
                             HStack { ProgressView().padding(.leading, 8); Spacer() }
                         }
@@ -75,6 +77,24 @@ struct CompanionView: View {
             if let error { Text(error).font(.caption).foregroundStyle(Color.support).padding(.horizontal) }
             inputBar
         }
+    }
+
+    /// Membership suggestion — a distinct, dismissible card, deliberately not
+    /// styled as companion speech.
+    private func suggestionCard(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(text).font(.footnote).foregroundStyle(Color.ground.opacity(0.95))
+            HStack(spacing: 14) {
+                Text("Manage membership in Settings on the web")
+                    .font(.caption2).foregroundStyle(Color.olive)
+                Spacer()
+                Button("Dismiss") { suggestion = nil }
+                    .font(.caption).foregroundStyle(Color.olive)
+            }
+        }
+        .padding(14)
+        .background(Color.moss, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.sageDeep.opacity(0.4)))
     }
 
     private func bubble(_ m: ChatMessageDTO) -> some View {
@@ -130,6 +150,7 @@ struct CompanionView: View {
             let res = try await backend.sendCompanionMessage(conversationId: conversationId, text: text)
             conversationId = res.conversationId
             messages.append(ChatMessageDTO(sender: "companion", text: res.reply, riskFlag: res.riskFlag))
+            if let s = res.suggestion, !s.isEmpty { suggestion = s }
             if res.riskFlag { showCrisis = true }
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? "Message didn't send. Try again."
