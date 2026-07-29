@@ -25,6 +25,7 @@ struct DashboardView: View {
                         checkinCard
                         breatheCard
                         meditateCard
+                        moveCard
                         sleepCard
                         learnCard
                         if !sessions.isEmpty { trendCard }
@@ -72,6 +73,21 @@ struct DashboardView: View {
                     Text("Prepare & regulate").font(.caption).foregroundStyle(Color.olive)
                     Text("Meditate").font(.serifDisplay(24)).foregroundStyle(Color.ground)
                     Text("Short guided practices — grounding, calm-place, self-compassion. Read aloud or as text.")
+                        .font(.subheadline).foregroundStyle(Color.olive)
+                }
+            }
+        }.buttonStyle(.plain)
+    }
+
+    private var moveCard: some View {
+        NavigationLink {
+            MeditateView(copy: .movement)
+        } label: {
+            SoftCard {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Prepare & regulate").font(.caption).foregroundStyle(Color.olive)
+                    Text("Move").font(.serifDisplay(24)).foregroundStyle(Color.ground)
+                    Text("Gentle guided movement — orienting turns, rooting down, easy stretches, shaking it off.")
                         .font(.subheadline).foregroundStyle(Color.olive)
                 }
             }

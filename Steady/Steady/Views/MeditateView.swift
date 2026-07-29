@@ -33,6 +33,17 @@ struct LibraryCopy {
         doneBody: "However far you got, you gave your body a chance to let go. Sleep will come.",
         anotherLabel: "A different wind-down"
     )
+
+    static let movement = LibraryCopy(
+        practiceType: "movement",
+        heading: "Move",
+        intro: "Gentle, guided movement to help held stress leave the body — orienting turns, rooting down, easy stretches, shaking it off. Move only as far as feels good; most works seated too. Read aloud so you can keep your hands free.",
+        loadError: "Couldn't load movements.",
+        footnote: "Gentler, orienting movements come first on days your check-in suggests taking it easy. Move within comfort, and stop any time.",
+        doneTitle: "Nicely moved",
+        doneBody: "You gave your body a way to release and reset. Notice how you feel now, compared to when you started.",
+        anotherLabel: "Another movement"
+    )
 }
 
 /// Guided meditation / sleep library (roadmap F2 / F5). Backend-served,
