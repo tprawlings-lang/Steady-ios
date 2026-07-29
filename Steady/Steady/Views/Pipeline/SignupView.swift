@@ -30,6 +30,25 @@ struct SignupView: View {
                     Text("Steady is a self-guided wellness program for adults, built on the EMDR method. Not therapy, not medical care, not for emergencies.")
                         .font(.subheadline).foregroundStyle(Color.olive)
 
+                    // Tier preview — mirrors the web signup's ladder; the full
+                    // picker is the next step (SubscribeView).
+                    VStack(spacing: 8) {
+                        ForEach(Marketing.tiers) { tier in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(tier.name).font(.serifDisplay(18)).foregroundStyle(Color.ground)
+                                Text(tier.tagline).font(.caption).foregroundStyle(Color.olive)
+                                Spacer()
+                                Text(tier.price).font(.footnote.weight(.semibold)).foregroundStyle(Color.ground)
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .background(Color.linen, in: RoundedRectangle(cornerRadius: 16))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.ground.opacity(0.08)))
+                        }
+                        Text(Marketing.trialLine)
+                            .font(.caption).foregroundStyle(Color.olive)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     SoftCard {
                         VStack(alignment: .leading, spacing: 12) {
                             if !backend.isConfigured {
