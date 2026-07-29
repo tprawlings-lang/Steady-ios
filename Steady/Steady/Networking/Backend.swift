@@ -103,9 +103,13 @@ final class Backend {
     }
 
     struct SubscribeResult: Codable { let active: Bool }
+    /// Start the membership: a 7-day Premium trial, then billing on `plan`
+    /// (base | plus | premium).
     @discardableResult
-    func subscribe() async throws -> Bool {
-        let r: SubscribeResult = try await request("/api/mobile/v1/billing/subscribe", method: "POST", body: Data("{}".utf8))
+    func subscribe(plan: String = "premium") async throws -> Bool {
+        struct Body: Encodable { let plan: String }
+        let body = (try? JSONEncoder().encode(Body(plan: plan))) ?? Data("{}".utf8)
+        let r: SubscribeResult = try await request("/api/mobile/v1/billing/subscribe", method: "POST", body: body)
         try await loadMe()
         return r.active
     }

@@ -148,6 +148,9 @@ struct SettingsView: View {
         Section("Account & sync") {
             if backend.isAuthenticated, let user = backend.currentUser {
                 LabeledContent("Signed in", value: user.email)
+                if let tier = backend.gating?.tier {
+                    LabeledContent("Membership", value: tier.capitalized)
+                }
                 Button {
                     syncing = true
                     Task { @MainActor in await SyncEngine.sync(backend, context: context); syncing = false }

@@ -22,6 +22,9 @@ struct TodayCheckinDTO: Codable, Equatable {
 
 struct GatingDTO: Codable, Equatable {
     let subscriptionActive: Bool
+    /// Membership tier: base | plus | premium (trials run at premium).
+    /// Optional so decoding older server responses still succeeds.
+    let tier: String?
     let hasConsent: Bool
     let screeningComplete: Bool
     let profileComplete: Bool
