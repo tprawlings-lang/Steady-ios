@@ -266,6 +266,13 @@ final class Backend {
         let _: OkResponse? = try? await request("/api/mobile/v1/lessons/read", method: "POST", body: body)
     }
 
+    // MARK: - Autopilot (Premium)
+
+    func getAutopilotToday() async throws -> AutopilotPlanDTO? {
+        let r: AutopilotTodayResponse = try await request("/api/mobile/v1/autopilot/today", method: "GET")
+        return r.plan
+    }
+
     // MARK: - SOS (panic panel)
 
     func getSos() async throws -> SosPanelDTO {

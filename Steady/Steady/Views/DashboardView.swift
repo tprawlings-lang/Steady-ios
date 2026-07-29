@@ -8,6 +8,7 @@ struct DashboardView: View {
     @Environment(Backend.self) private var backend
     @Query(sort: \SessionRecord.startedAt, order: .reverse) private var sessions: [SessionRecord]
     @Query(sort: \CheckinRecord.date, order: .reverse) private var checkins: [CheckinRecord]
+    @State private var autopilot: AutopilotPlanDTO?
 
     private func available(_ module: TherapyModule) -> Bool {
         backend.serverAllows(module.id) ?? app.isModuleAvailable(module)
@@ -23,6 +24,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         header
                         checkinCard
+                        if let autopilot { autopilotCard(autopilot) }
                         breatheCard
                         meditateCard
                         moveCard
@@ -39,6 +41,84 @@ struct DashboardView: View {
             }
             .navigationTitle("Steady")
             .navigationBarTitleDisplayMode(.inline)
+            .task(id: backend.gating?.tier) {
+                // Autopilot is Premium-only; the server returns null otherwise.
+                if backend.isAuthenticated, backend.gating?.tier == "premium" {
+                    autopilot = try? await backend.getAutopilotToday()
+                } else {
+                    autopilot = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Autopilot (Premium)
+
+    private func autopilotCard(_ plan: AutopilotPlanDTO) -> some View {
+        SoftCard(background: Color.moss) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Autopilot · today's plan").font(.caption).foregroundStyle(Color.olive)
+                        Text(plan.headline).font(.serifDisplay(22)).foregroundStyle(Color.ground)
+                    }
+                    Spacer()
+                    Text(plan.date).font(.caption2).foregroundStyle(Color.olive)
+                }
+                if let outreach = plan.outreach {
+                    Text(outreach)
+                        .font(.footnote).foregroundStyle(Color.ground.opacity(0.9))
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.ivory.opacity(0.7), in: RoundedRectangle(cornerRadius: 14))
+                }
+                ForEach(plan.items, id: \.self) { item in
+                    autopilotRow(item)
+                }
+                if let note = plan.pacingNote {
+                    Text(note).font(.caption2).foregroundStyle(Color.olive)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func autopilotRow(_ item: AutopilotItemDTO) -> some View {
+        NavigationLink {
+            autopilotDestination(item)
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.title).font(.system(size: 15, weight: .medium)).foregroundStyle(Color.ground)
+                    Text(item.detail).font(.caption).foregroundStyle(Color.olive)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(Color.olive).padding(.top, 4)
+            }
+            .padding(12)
+            .background(Color.linen, in: RoundedRectangle(cornerRadius: 14))
+        }.buttonStyle(.plain)
+    }
+
+    /// Map a plan item to its native screen (hrefs are the web's routes).
+    @ViewBuilder private func autopilotDestination(_ item: AutopilotItemDTO) -> some View {
+        switch item.kind {
+        case "checkin":
+            CheckinView()
+        case "practice":
+            if item.href.contains("meditate") { MeditateView() }
+            else if item.href.contains("sleep") { MeditateView(copy: .sleep) }
+            else if item.href.contains("move") { MeditateView(copy: .movement) }
+            else { BreatheView() }
+        case "session":
+            if let module = ModuleCatalog.all.first(where: { item.href.hasSuffix("/\($0.id)") }) {
+                ModuleDetailView(module: module)
+            } else {
+                GroundingView()
+            }
+        case "lesson":
+            LearnView()
+        default:
+            GroundingView()
         }
     }
 
